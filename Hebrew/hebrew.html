@@ -333,7 +333,7 @@
     // Function to fetch data from data.json
     async function fetchVerses() {
         try {
-            const response = await fetch('hebrew.json');
+            const response = await fetch('./hebrew.json');
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
