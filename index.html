@@ -275,242 +275,271 @@
         <div id="message-box" class="message-box hidden"></div>
     </div>
 
-    <script>
+<script>
 
-        let verses = [];
-        const versesPerPage = 60;
-        const columns = 6;
-        const rows = 10;
-        let totalPages = 0;
-        
-        const tableContainer = document.getElementById('table-container');
-        const pagination = document.querySelector('.pagination');
-        const prevButton = document.getElementById('prevButton');
-        const nextButton = document.getElementById('nextButton');
-        const chapterIndicator = document.getElementById('chapterIndicator');
-        const jumpInput = document.getElementById('jumpInput');
-        const jumpButton = document.getElementById('jumpButton');
-        
-        const homeLink = document.getElementById('home-link');
-        const ntvLink = document.getElementById('ntv-link');
-        const searchInput = document.getElementById('searchInput');
-        const searchButton = document.getElementById('searchButton');
-        
-        const randomVerseSection = document.getElementById('random-verse-section');
-        const randomVerseBox = document.getElementById('random-verse-box');
-        const randomVerseButton = document.getElementById('random-verse-button');
-        const messageBox = document.getElementById('message-box');
+    let verses = [];
+    const versesPerPage = 60;
+    const columns = 6;
+    const rows = 10;
+    let totalPages = 0;
 
-        let currentPage = 1;
+    const tableContainer = document.getElementById('table-container');
+    const pagination = document.querySelector('.pagination');
+    const prevButton = document.getElementById('prevButton');
+    const nextButton = document.getElementById('nextButton');
+    const chapterIndicator = document.getElementById('chapterIndicator');
+    const jumpInput = document.getElementById('jumpInput');
+    const jumpButton = document.getElementById('jumpButton');
 
-        // Function to fetch data from data.json
-        async function fetchVerses() {
-            try {
-                const response = await fetch('data.json');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                verses = await response.json();
-                totalPages = Math.ceil(verses.length / versesPerPage);
-                renderTable(currentPage);
-                showView('table');
-            } catch (error) {
-                console.error('Failed to load verses:', error);
-                messageBox.textContent = "Failed to load verses. Please make sure 'data.json' is in the same directory.";
-                showView('message');
+    const homeLink = document.getElementById('home-link');
+    const ntvLink = document.getElementById('ntv-link');
+    const searchInput = document.getElementById('searchInput');
+    const searchButton = document.getElementById('searchButton');
+
+    const randomVerseSection = document.getElementById('random-verse-section');
+    const randomVerseBox = document.getElementById('random-verse-box');
+    const randomVerseButton = document.getElementById('random-verse-button');
+    const messageBox = document.getElementById('message-box');
+
+    let currentPage = 1;
+
+    // --- NEW FUNCTION: Deduplicate verses case-insensitively ---
+    /**
+     * Removes case-insensitive duplicate verse references from an array.
+     * @param {string[]} array The array of verse strings.
+     * @returns {string[]} A new array with duplicates removed, preserving the case of the first occurrence.
+     */
+    function removeCaseInsensitiveDuplicates(array) {
+        const seen = new Set();
+        const uniqueVerses = [];
+
+        for (const verse of array) {
+            // Use the lowercase version for the check
+            const lowerCaseVerse = verse.toLowerCase();
+            if (!seen.has(lowerCaseVerse)) {
+                // If it hasn't been seen, add the lowercase version to the Set
+                seen.add(lowerCaseVerse);
+                // And add the original case verse to the result array
+                uniqueVerses.push(verse);
             }
         }
+        return uniqueVerses;
+    }
+    // -----------------------------------------------------------------
 
-        function renderTable(page) {
-            clearHighlight();
-            tableContainer.innerHTML = '';
-            const start = (page - 1) * versesPerPage;
-            const end = start + versesPerPage;
-            const pageVerses = verses.slice(start, end);
-
-            let tableHTML = `
-                <table class="bible-verse-table">
-                    <thead>
-                        <tr>
-                            <th>Word I</th>
-                            <th>Word II</th>
-                            <th>Word III</th>
-                            <th>Word IV</th>
-                            <th>Word V</th>
-                            <th>Word VI</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            for (let i = 0; i < rows; i++) {
-                tableHTML += `<tr>`;
-                for (let j = 0; j < columns; j++) {
-                    const verseIndex = j * rows + i;
-                    if (verseIndex < pageVerses.length) {
-                        tableHTML += `<td><div class="verse-content">${pageVerses[verseIndex]}</div></td>`;
-                    } else {
-                        tableHTML += `<td><div class="verse-content"></div></td>`;
-                    }
-                }
-                tableHTML += `</tr>`;
+    // Function to fetch data from data.json
+    async function fetchVerses() {
+        try {
+            const response = await fetch('data.json');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
             }
-            
-            tableHTML += `
-                    </tbody>
-                </table>
-            `;
-            tableContainer.innerHTML = tableHTML;
-            updatePagination();
-        }
+            let rawVerses = await response.json();
 
-        function updatePagination() {
-            prevButton.disabled = currentPage === 1;
-            nextButton.disabled = currentPage === totalPages;
-            chapterIndicator.textContent = `CHAPTER ${currentPage} OF ${totalPages}`;
-            jumpInput.setAttribute('max', totalPages);
-        }
+            // --- MODIFIED: Process data to remove duplicates ---
+            verses = removeCaseInsensitiveDuplicates(rawVerses);
+            // -------------------------------------------------
 
-        function displayRandomVerse() {
-            if (verses.length > 0) {
-                const randomIndex = Math.floor(Math.random() * verses.length);
-                randomVerseBox.textContent = verses[randomIndex];
-            } else {
-                randomVerseBox.textContent = "No verses available.";
-            }
-        }
-
-        function showView(view) {
-            tableContainer.classList.add('hidden');
-            pagination.classList.add('hidden');
-            randomVerseSection.classList.add('hidden');
-            messageBox.classList.add('hidden');
-            
-            if (view === 'table') {
-                tableContainer.classList.remove('hidden');
-                pagination.classList.remove('hidden');
-            } else if (view === 'ntv') {
-                randomVerseSection.classList.remove('hidden');
-                displayRandomVerse();
-            } else if (view === 'message') {
-                messageBox.classList.remove('hidden');
-            }
-        }
-
-        function clearHighlight() {
-            const highlightedCells = document.querySelectorAll('.highlight');
-            highlightedCells.forEach(cell => cell.classList.remove('highlight'));
-        }
-
-        // Event listeners for page navigation
-        nextButton.addEventListener('click', () => {
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderTable(currentPage);
-            }
-        });
-
-        prevButton.addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderTable(currentPage);
-            }
-        });
-
-        jumpButton.addEventListener('click', () => {
-            const jumpToPage = parseInt(jumpInput.value, 10);
-            if (!isNaN(jumpToPage) && jumpToPage >= 1 && jumpToPage <= totalPages) {
-                currentPage = jumpToPage;
-                renderTable(currentPage);
-            }
-        });
-
-        jumpInput.addEventListener('keyup', (event) => {
-            if (event.key === 'Enter') {
-                jumpButton.click();
-            }
-        });
-
-        // Event listener for NTV link
-        ntvLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            showView('ntv');
-        });
-
-        // Event listener for HOME link
-        homeLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            currentPage = 1;
+            totalPages = Math.ceil(verses.length / versesPerPage);
             renderTable(currentPage);
             showView('table');
-        });
-
-        // Event listener for the new random verse button
-        randomVerseButton.addEventListener('click', displayRandomVerse);
-
-        // Event listener for search
-        function handleSearch() {
-            const searchTerm = searchInput.value.trim().toLowerCase();
-            if (searchTerm === '') {
-                return;
-            }
-
-            // Find the index of the verse, ignoring case
-            const foundIndex = verses.findIndex(verse => verse.toLowerCase() === searchTerm);
-            
-            if (foundIndex !== -1) {
-                const pageNumber = Math.floor(foundIndex / versesPerPage) + 1;
-                currentPage = pageNumber;
-                renderTable(currentPage);
-                showView('table');
-                
-                // Find and highlight the cell using the case-insensitive search term
-                const tableCells = document.querySelectorAll('.bible-verse-table td');
-                tableCells.forEach(cell => {
-                    if (cell.textContent.toLowerCase() === searchTerm) {
-                        cell.classList.add('highlight');
-                    } else {
-                        cell.classList.remove('highlight');
-                    }
-                });
-            } else {
-                messageBox.textContent = "Verse not found.";
-                showView('message');
-            }
+        } catch (error) {
+            console.error('Failed to load verses:', error);
+            messageBox.textContent = "Failed to load verses. Please make sure 'data.json' is in the same directory.";
+            showView('message');
         }
-        
-        searchButton.addEventListener('click', handleSearch);
-        searchInput.addEventListener('keyup', (e) => {
-            if (e.key === 'Enter') {
-                handleSearch();
-            }
-        });
+    }
 
-        // New feature: Keyboard arrow navigation for pagination
-        document.addEventListener('keydown', (e) => {
-            // Only respond to key events if the table view is currently visible
-            // and no input field is focused (like search or jump)
-            const isTableVisible = !tableContainer.classList.contains('hidden');
-            const isInputFocused = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'BUTTON';
+    function renderTable(page) {
+        clearHighlight();
+        tableContainer.innerHTML = '';
+        const start = (page - 1) * versesPerPage;
+        const end = start + versesPerPage;
+        const pageVerses = verses.slice(start, end);
 
-            if (isTableVisible && !isInputFocused) {
-                if (e.key === 'ArrowRight') {
-                    // Check if the next button is enabled before clicking
-                    if (!nextButton.disabled) {
-                        nextButton.click();
-                    }
-                } else if (e.key === 'ArrowLeft') {
-                    // Check if the previous button is enabled before clicking
-                    if (!prevButton.disabled) {
-                        prevButton.click();
-                    }
+        let tableHTML = `
+            <table class="bible-verse-table">
+                <thead>
+                    <tr>
+                        <th>Word I</th>
+                        <th>Word II</th>
+                        <th>Word III</th>
+                        <th>Word IV</th>
+                        <th>Word V</th>
+                        <th>Word VI</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        for (let i = 0; i < rows; i++) {
+            tableHTML += `<tr>`;
+            for (let j = 0; j < columns; j++) {
+                const verseIndex = j * rows + i;
+                if (verseIndex < pageVerses.length) {
+                    tableHTML += `<td><div class="verse-content">${pageVerses[verseIndex]}</div></td>`;
+                } else {
+                    tableHTML += `<td><div class="verse-content"></div></td>`;
                 }
             }
-        });
+            tableHTML += `</tr>`;
+        }
 
-        // Initial page render
-        fetchVerses();
-    </script>
+        tableHTML += `
+                </tbody>
+            </table>
+        `;
+        tableContainer.innerHTML = tableHTML;
+        updatePagination();
+    }
+
+    function updatePagination() {
+        prevButton.disabled = currentPage === 1;
+        nextButton.disabled = currentPage === totalPages;
+        chapterIndicator.textContent = `CHAPTER ${currentPage} OF ${totalPages}`;
+        jumpInput.setAttribute('max', totalPages);
+    }
+
+    function displayRandomVerse() {
+        if (verses.length > 0) {
+            const randomIndex = Math.floor(Math.random() * verses.length);
+            randomVerseBox.textContent = verses[randomIndex];
+        } else {
+            randomVerseBox.textContent = "No verses available.";
+        }
+    }
+
+    function showView(view) {
+        tableContainer.classList.add('hidden');
+        pagination.classList.add('hidden');
+        randomVerseSection.classList.add('hidden');
+        messageBox.classList.add('hidden');
+
+        if (view === 'table') {
+            tableContainer.classList.remove('hidden');
+            pagination.classList.remove('hidden');
+        } else if (view === 'ntv') {
+            randomVerseSection.classList.remove('hidden');
+            displayRandomVerse();
+        } else if (view === 'message') {
+            messageBox.classList.remove('hidden');
+        }
+    }
+
+    function clearHighlight() {
+        const highlightedCells = document.querySelectorAll('.highlight');
+        highlightedCells.forEach(cell => cell.classList.remove('highlight'));
+    }
+
+    // Event listeners for page navigation
+    nextButton.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderTable(currentPage);
+        }
+    });
+
+    prevButton.addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderTable(currentPage);
+        }
+    });
+
+    jumpButton.addEventListener('click', () => {
+        const jumpToPage = parseInt(jumpInput.value, 10);
+        if (!isNaN(jumpToPage) && jumpToPage >= 1 && jumpToPage <= totalPages) {
+            currentPage = jumpToPage;
+            renderTable(currentPage);
+        }
+    });
+
+    jumpInput.addEventListener('keyup', (event) => {
+        if (event.key === 'Enter') {
+            jumpButton.click();
+        }
+    });
+
+    // Event listener for NTV link
+    ntvLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        showView('ntv');
+    });
+
+    // Event listener for HOME link
+    homeLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        currentPage = 1;
+        renderTable(currentPage);
+        showView('table');
+    });
+
+    // Event listener for the new random verse button
+    randomVerseButton.addEventListener('click', displayRandomVerse);
+
+    // Event listener for search
+    function handleSearch() {
+        const searchTerm = searchInput.value.trim().toLowerCase();
+        if (searchTerm === '') {
+            return;
+        }
+
+        // Find the index of the verse, ignoring case
+        const foundIndex = verses.findIndex(verse => verse.toLowerCase() === searchTerm);
+
+        if (foundIndex !== -1) {
+            const pageNumber = Math.floor(foundIndex / versesPerPage) + 1;
+            currentPage = pageNumber;
+            renderTable(currentPage);
+            showView('table');
+
+            // Find and highlight the cell using the case-insensitive search term
+            const tableCells = document.querySelectorAll('.bible-verse-table td');
+            tableCells.forEach(cell => {
+                if (cell.textContent.toLowerCase() === searchTerm) {
+                    cell.classList.add('highlight');
+                } else {
+                    cell.classList.remove('highlight');
+                }
+            });
+        } else {
+            messageBox.textContent = "Verse not found.";
+            showView('message');
+        }
+    }
+
+    searchButton.addEventListener('click', handleSearch);
+    searchInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    });
+
+    // New feature: Keyboard arrow navigation for pagination
+    document.addEventListener('keydown', (e) => {
+        // Only respond to key events if the table view is currently visible
+        // and no input field is focused (like search or jump)
+        const isTableVisible = !tableContainer.classList.contains('hidden');
+        const isInputFocused = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'BUTTON';
+
+        if (isTableVisible && !isInputFocused) {
+            if (e.key === 'ArrowRight') {
+                // Check if the next button is enabled before clicking
+                if (!nextButton.disabled) {
+                    nextButton.click();
+                }
+            } else if (e.key === 'ArrowLeft') {
+                // Check if the previous button is enabled before clicking
+                if (!prevButton.disabled) {
+                    prevButton.click();
+                }
+            }
+        }
+    });
+
+    // Initial page render
+    fetchVerses();
+</script>
 
 </body>
 </html>
